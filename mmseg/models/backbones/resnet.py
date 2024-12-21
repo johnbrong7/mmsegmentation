@@ -14,6 +14,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from DualGCNNet import DualGCN
+
 class ChannelAttention(nn.Module):
     def __init__(self, in_channels, ratio=4):
         super(ChannelAttention, self).__init__()
@@ -281,7 +283,11 @@ class Bottleneck(BaseModule):
 
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
+        self.cbam = CBAM(planes * self.expansion, ratio=cbam_ratio, kernel_size=cbam_kernel_size)
 
+        # Add DualGCN
+        self.dual_gcn = DualGCN(planes * self.expansion)
+                     
         if self.with_plugins:
             self.after_conv1_plugin_names = self.make_block_plugins(
                 planes, self.after_conv1_plugins)
