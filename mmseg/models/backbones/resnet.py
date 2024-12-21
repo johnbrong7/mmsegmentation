@@ -374,6 +374,8 @@ class Bottleneck(BaseModule):
             out = self.conv3(out)
             out = self.norm3(out)
 
+            ## gcn and cbam
+            out = self.dual_gcn(out)
             out = self.cbam(out)
 
 
