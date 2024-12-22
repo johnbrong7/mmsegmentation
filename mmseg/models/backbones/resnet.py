@@ -63,10 +63,6 @@ class CBAM(nn.Module):
 # -*- coding:utf-8 -*-
 # Author: Xiangtai(lxt@pku.edu.cn)
 # Pytorch implementation of Dual-GCN net
-import torch
-import torch.nn.functional as F
-import torch.nn as nn
-from libs.models.GALDNet import Bottleneck, conv3x3
 
 BatchNorm2d = nn.BatchNorm2d
 BatchNorm1d = nn.BatchNorm1d
@@ -281,7 +277,7 @@ class BasicBlock(BaseModule):
         out_channels = planes 
         self.cbam = CBAM(out_channels, ratio=cbam_ratio, kernel_size=cbam_kernel_size)
         self._initialise_cbam_weights()
-        self.is_cbam = True
+        self.is_cbam = False
 
     def _initialise_cbam_weights(self):
         for m in self.modules():
@@ -381,9 +377,9 @@ class Bottleneck(BaseModule):
         self.plugins = plugins
         self.with_plugins = plugins is not None
         out_channels = planes * self.expansion
-        self.cbam = CBAM(out_channels, ratio=cbam_ratio, kernel_size=cbam_kernel_size)
-        self._initialise_cbam_weights()
-        self.is_cbam = True
+        # self.cbam = CBAM(out_channels, ratio=cbam_ratio, kernel_size=cbam_kernel_size)
+        # self._initialise_cbam_weights()
+        # self.is_cbam = True
 
         if self.with_plugins:
             # collect plugins for conv1/conv2/conv3
@@ -456,10 +452,10 @@ class Bottleneck(BaseModule):
 
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
-        self.cbam = CBAM(planes * self.expansion, ratio=cbam_ratio, kernel_size=cbam_kernel_size)
+        # self.cbam = CBAM(planes * self.expansion, ratio=cbam_ratio, kernel_size=cbam_kernel_size)
 
-        # Add DualGCN
-        self.dual_gcn = DualGCN(planes * self.expansion)
+        # # Add DualGCN
+        # self.dual_gcn = DualGCN(planes * self.expansion)
                      
         if self.with_plugins:
             self.after_conv1_plugin_names = self.make_block_plugins(
@@ -469,15 +465,15 @@ class Bottleneck(BaseModule):
             self.after_conv3_plugin_names = self.make_block_plugins(
                 planes * self.expansion, self.after_conv3_plugins)
 
-    def _initialise_cbam_weights(self):
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.Linear):
-                nn.init.normal_(m.weight, 0, 0.01)
-                nn.init.constant_(m.bias, 0)
+    # def _initialise_cbam_weights(self):
+    #     for m in self.modules():
+    #         if isinstance(m, nn.Conv2d):
+    #             nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+    #             if m.bias is not None:
+    #                 nn.init.constant_(m.bias, 0)
+    #         elif isinstance(m, nn.Linear):
+    #             nn.init.normal_(m.weight, 0, 0.01)
+    #             nn.init.constant_(m.bias, 0)
 
     def make_block_plugins(self, in_channels, plugins):
         """make plugins for block.
@@ -547,9 +543,9 @@ class Bottleneck(BaseModule):
             out = self.conv3(out)
             out = self.norm3(out)
 
-            ## gcn and cbam
-            out = self.dual_gcn(out)
-            out = self.cbam(out)
+            # ## gcn and cbam
+            # out = self.dual_gcn(out)
+            # out = self.cbam(out)
 
 
             if self.with_plugins:
@@ -754,6 +750,9 @@ class ResNet(BaseModule):
         self._make_stem_layer(in_channels, stem_channels)
 
         self.res_layers = []
+        self.dual_gcn = DualGCN(planes=self.feat_dim)  
+        self.cbam = CBAM(in_channels=self.feat_dim)  
+
         for i, num_blocks in enumerate(self.stage_blocks):
             stride = strides[i]
             dilation = dilations[i]
@@ -939,7 +938,10 @@ class ResNet(BaseModule):
             x = res_layer(x)
             if i in self.out_indices:
                 outs.append(x)
-        return tuple(outs)
+
+        x = self.dual_gcn(x)  
+        x = self.cbam(x) 
+        return x
 
     def train(self, mode=True):
         """Convert the model into training mode while keep normalization layer
@@ -985,3 +987,4 @@ class ResNetV1d(ResNet):
 
     def __init__(self, **kwargs):
         super().__init__(deep_stem=True, avg_down=True, **kwargs)
+
