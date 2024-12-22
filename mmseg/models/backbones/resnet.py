@@ -750,8 +750,6 @@ class ResNet(BaseModule):
         self._make_stem_layer(in_channels, stem_channels)
 
         self.res_layers = []
-        self.dual_gcn = DualGCN(planes=self.feat_dim)  
-        self.cbam = CBAM(in_channels=self.feat_dim, ratio=cbam_ratio, kernel_size=cbam_kernel_size)
 
         for i, num_blocks in enumerate(self.stage_blocks):
             stride = strides[i]
@@ -791,6 +789,9 @@ class ResNet(BaseModule):
 
         self.feat_dim = self.block.expansion * base_channels * 2**(
             len(self.stage_blocks) - 1)
+        
+        self.dual_gcn = DualGCN(planes=self.feat_dim)  
+        self.cbam = CBAM(in_channels=self.feat_dim, ratio=cbam_ratio, kernel_size=cbam_kernel_size)
 
     def make_stage_plugins(self, plugins, stage_idx):
         """make plugins for ResNet 'stage_idx'th stage .
@@ -938,10 +939,8 @@ class ResNet(BaseModule):
             x = res_layer(x)
             if i in self.out_indices:
                 outs.append(x)
-
-        x = self.dual_gcn(x)  
-        x = self.cbam(x) 
-        return x
+        outs[-1] = self.cbam(self.dual_gcn(outs[-1]))
+        return tuple(outs)
 
     def train(self, mode=True):
         """Convert the model into training mode while keep normalization layer
@@ -987,4 +986,3 @@ class ResNetV1d(ResNet):
 
     def __init__(self, **kwargs):
         super().__init__(deep_stem=True, avg_down=True, **kwargs)
-
