@@ -751,7 +751,7 @@ class ResNet(BaseModule):
 
         self.res_layers = []
         self.dual_gcn = DualGCN(planes=self.feat_dim)  
-        self.cbam = CBAM(in_channels=self.feat_dim)  
+        self.cbam = CBAM(in_channels=self.feat_dim, ratio=cbam_ratio, kernel_size=cbam_kernel_size)
 
         for i, num_blocks in enumerate(self.stage_blocks):
             stride = strides[i]
